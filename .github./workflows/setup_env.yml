@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          submodules: 'true'
 
       - name: Detect existing QEMU binary
         id: detect
@@ -58,18 +60,43 @@ jobs:
           echo "Using existing ${QEMU_BIN}"
           "${QEMU_BIN}" --version || true
 
-      - name: Cleanup build artifacts
+      - name: Install ARM cross toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi binutils-arm-none-eabi \
+            libnewlib-arm-none-eabi gdb-multiarch
+
+      - name: Build Cortex-M0 example
+        working-directory: examples/m0
+        run: |
+          make
+          file build/m0.elf
+          arm-none-eabi-size build/m0.elf
+
+      - name: Run on QEMU (Cortex-M0, micro:bit)
+        run: |
+          echo "Running Cortex-M0 example on QEMU micro:bit..."
+          timeout 30 "${QEMU_BIN}" -M microbit -nographic -semihosting \
+            -kernel examples/m0/build/m0.elf | tee m0_qemu_out.txt || true
+          echo "QEMU output:"
+          cat m0_qemu_out.txt
+          echo "Checking for expected output..."
+          grep -q "Hello from M0" m0_qemu_out.txt
+
+      - name: Cleanup intermediates (always)
         if: always()
         shell: bash
         run: |
           echo "Cleaning intermediate files..."
-          rm -rf "${QEMU_DIR}/build" \
-                 "${QEMU_DIR}/meson-info" \
+          # Clean QEMU build artifacts but keep the binary
+          rm -rf "${QEMU_DIR}/meson-info" \
                  "${QEMU_DIR}/meson-logs" \
                  "${QEMU_DIR}/meson-private" \
                  "${QEMU_DIR}/config.log" \
                  "${QEMU_DIR}/config-host.mak" \
-                 "${QEMU_DIR}/config.status" \
-                 "${QEMU_BIN}" || true
+                 "${QEMU_DIR}/config.status" || true
+          # Clean example build artifacts
+          make -C examples/m0 clean || true
+          rm -f m0_qemu_out.txt || true
           echo "Workspace after cleanup:"
           du -sh . || true

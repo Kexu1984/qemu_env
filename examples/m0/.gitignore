@@ -1,0 +1,18 @@
+# Build artifacts
+build/
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+
+# Editor files
+*~
+.*.swp
+.*.swo
+*.orig
+
+# Debug files
+*.dSYM/
+*.su
