@@ -1,0 +1,75 @@
+name: Setup QEMU (simple & on-demand)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, "copilot/*" ]
+  pull_request:
+
+jobs:
+  setup-qemu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      QEMU_DIR: qemu
+      QEMU_BIN: qemu/build/qemu-system-arm
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Detect existing QEMU binary
+        id: detect
+        shell: bash
+        run: |
+          if [ -x "${QEMU_BIN}" ]; then
+            echo "need_build=false" >> "$GITHUB_OUTPUT"
+            echo "Found existing ${QEMU_BIN}, skip build."
+          else
+            echo "need_build=true" >> "$GITHUB_OUTPUT"
+            echo "No ${QEMU_BIN}, will build."
+          fi
+
+      - name: Install build deps (only if build needed)
+        if: steps.detect.outputs.need_build == 'true'
+        run: |
+          sudo apt update
+          sudo apt install -y git ninja-build pkg-config python3 meson build-essential \
+              libglib2.0-dev libpixman-1-dev zlib1g-dev libfdt-dev
+
+      - name: Configure (arm-softmmu) if needed
+        if: steps.detect.outputs.need_build == 'true'
+        working-directory: ${{ env.QEMU_DIR }}
+        run: |
+          mkdir -p build
+          cd build
+          ../configure --target-list=arm-softmmu
+
+      - name: Build QEMU if needed
+        if: steps.detect.outputs.need_build == 'true'
+        working-directory: ${{ env.QEMU_DIR }}/build
+        run: |
+          make -j"$(nproc)"
+          ./qemu-system-arm --version || true
+
+      - name: Print QEMU version (fast)
+        if: steps.detect.outputs.need_build != 'true'
+        run: |
+          echo "Using existing ${QEMU_BIN}"
+          "${QEMU_BIN}" --version || true
+
+      - name: Cleanup build artifacts
+        if: always()
+        shell: bash
+        run: |
+          echo "Cleaning intermediate files..."
+          rm -rf "${QEMU_DIR}/build" \
+                 "${QEMU_DIR}/meson-info" \
+                 "${QEMU_DIR}/meson-logs" \
+                 "${QEMU_DIR}/meson-private" \
+                 "${QEMU_DIR}/config.log" \
+                 "${QEMU_DIR}/config-host.mak" \
+                 "${QEMU_DIR}/config.status" \
+                 "${QEMU_BIN}" || true
+          echo "Workspace after cleanup:"
+          du -sh . || true
