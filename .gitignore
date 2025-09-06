@@ -22,6 +22,10 @@ examples/*/build/
 uart_output.*
 custom_uart_output.*
 
+# Setup script logs
+setup.log
+build.log
+
 # Editor files
 *~
 *.swp

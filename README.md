@@ -2,6 +2,33 @@
 
 This repository provides a QEMU development environment for ARM Cortex-M0 bare metal development, including QEMU source code, custom peripheral implementations, and example projects.
 
+## 🚀 Quick Start (自动化设置)
+
+**推荐使用我们的自动化设置脚本，一键完成所有配置：**
+
+```bash
+# 克隆项目
+git clone <your-repo-url>
+cd qemu_env
+
+# 运行自动化设置脚本 (完整流程)
+./setup.sh
+
+# 或者分步执行：
+./setup.sh --deps      # 仅安装依赖
+./setup.sh --source    # 仅下载QEMU源码
+./setup.sh --integrate # 仅集成自定义设备
+./setup.sh --build     # 仅编译QEMU
+./setup.sh --test      # 仅测试自定义设备
+```
+
+**脚本将自动处理：**
+- ✅ 安装所有必要的依赖包
+- ✅ 下载QEMU源码 (通过git submodule或直接克隆)
+- ✅ 集成我们的自定义UART设备到QEMU源码
+- ✅ 编译带有自定义设备的QEMU
+- ✅ 测试自定义设备功能
+
 ## Overview
 
 The project includes:
@@ -11,6 +38,7 @@ The project includes:
 - ARM Cortex-M0 bare metal examples with UART communication
 - Complete build system for cross-compilation
 - Support for debugging with GDB and semihosting
+- **Automated setup script** for easy deployment
 - CI/CD pipeline for automated testing
 
 ## 🚀 Key Features
@@ -18,6 +46,7 @@ The project includes:
 - **Custom UART Peripheral**: Full implementation at memory address `0x60000000`
 - **Hardware Development**: Example of how to add custom peripherals to QEMU
 - **Professional Development Tools**: Complete debugging and testing infrastructure
+- **One-Click Setup**: Automated script handles all configuration steps
 
 ## Custom UART Peripheral
 
@@ -63,6 +92,14 @@ if (UART_STATUS & 0x1) { // Check TX_READY
 
 ## Quick Setup (Recommended)
 
+**使用自动化脚本 (推荐方式):**
+
+```bash
+./setup.sh --all    # 完整设置流程
+```
+
+**手动设置 (如果需要自定义):**
+
 For fastest setup, use system packages:
 
 ```bash
@@ -82,7 +119,9 @@ git submodule update --init
 
 ## Building QEMU from Source (Advanced)
 
-If you need to build QEMU from the included submodule:
+**注意**: 如果你使用了我们的自动化脚本 `./setup.sh`，可以跳过这个部分。脚本已经自动处理了QEMU源码下载、自定义设备集成和编译。
+
+If you need to build QEMU manually from the included submodule:
 
 ### Prerequisites
 
@@ -224,6 +263,11 @@ In GDB:
 ```
 .
 ├── README.md                        # This file
+├── setup.sh                         # 🔧 Automated setup script
+├── custom-devices/                  # 🔌 Custom device source files
+│   ├── custom-uart.c                # Custom UART peripheral implementation
+│   ├── custom-uart.h                # Custom UART header file
+│   └── microbit-custom.c            # Custom machine type definition
 ├── examples/m0/                     # Cortex-M0 bare metal examples
 │   ├── Makefile                     # Build system with custom UART support
 │   ├── README.md                    # Example-specific documentation
@@ -233,12 +277,47 @@ In GDB:
 │   ├── startup/startup_m0.S         # ARM startup code
 │   └── linker/m0.ld                 # Memory layout
 ├── qemu/                            # QEMU source (submodule) with custom peripherals
-│   ├── hw/char/custom-uart.c        # Custom UART peripheral implementation
-│   ├── hw/char/custom-uart.h        # Custom UART header
-│   ├── hw/arm/microbit-custom.c     # Custom machine type definition
+│   ├── hw/char/custom-uart.c        # ⚡ Integrated by setup.sh
+│   ├── hw/char/custom-uart.h        # ⚡ Integrated by setup.sh
+│   ├── hw/arm/microbit-custom.c     # ⚡ Integrated by setup.sh
 │   └── ...                          # Standard QEMU source
 └── .github/workflows/setup_env.yml  # CI/CD pipeline
 ```
+
+## Automated Setup Script
+
+### Script Features
+
+The `setup.sh` script provides the following functionality:
+
+- **Dependency Installation**: Automatically installs all required packages
+- **Source Management**: Downloads QEMU source code via submodule or direct clone
+- **Device Integration**: Copies custom device files to correct QEMU locations
+- **Build Configuration**: Updates Makefile.objs files automatically
+- **Compilation**: Builds QEMU with custom devices enabled
+- **Testing**: Validates custom device functionality
+
+### Script Usage
+
+```bash
+./setup.sh [option]
+
+Options:
+  -h, --help          Show help message
+  -d, --deps          Install dependencies only  
+  -s, --source        Download QEMU source only
+  -i, --integrate     Integrate custom devices only
+  -b, --build         Build QEMU only
+  -t, --test          Test custom devices only
+  -a, --all           Full setup process (default)
+```
+
+### Script Requirements
+
+- Ubuntu/Debian Linux system (recommended)
+- Internet connection for downloading packages and source code
+- Sudo privileges for package installation
+- At least 2GB free disk space for QEMU source and build
 
 ## Hardware Development
 
