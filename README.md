@@ -1,15 +1,65 @@
 # QEMU ARM Development Environment
 
-This repository provides a QEMU development environment for ARM Cortex-M0 bare metal development, including QEMU source code and example projects.
+This repository provides a QEMU development environment for ARM Cortex-M0 bare metal development, including QEMU source code, custom peripheral implementations, and example projects.
 
 ## Overview
 
 The project includes:
 - QEMU source code as a git submodule
-- ARM Cortex-M0 bare metal examples 
+- **Custom UART peripheral implementation** with full register interface
+- Custom machine type (`microbit-custom`) with enhanced peripherals
+- ARM Cortex-M0 bare metal examples with UART communication
 - Complete build system for cross-compilation
 - Support for debugging with GDB and semihosting
 - CI/CD pipeline for automated testing
+
+## 🚀 Key Features
+
+- **Custom UART Peripheral**: Full implementation at memory address `0x60000000`
+- **Hardware Development**: Example of how to add custom peripherals to QEMU
+- **Professional Development Tools**: Complete debugging and testing infrastructure
+
+## Custom UART Peripheral
+
+This project includes a **custom UART peripheral** implementation that demonstrates how to add hardware peripherals to QEMU.
+
+### UART Specifications
+
+- **Memory Address**: `0x60000000`
+- **Register Interface**:
+  - `STATUS` (0x00): TX_READY flag (bit 0)
+  - `CONTROL` (0x04): Enable bits (TX_EN=1, RX_EN=2)  
+  - `DATA` (0x08): Character transmission register
+- **Character Backend**: Supports file output and serial redirection
+
+### Testing the Custom UART
+
+```bash
+# Build and test the custom UART example
+cd examples/m0
+make test-custom-uart
+
+# Expected output:
+# "Hello from Custom UART!"
+# "UART is working properly!"
+```
+
+### Using Custom UART in Your Code
+
+```c
+#define CUSTOM_UART_BASE 0x60000000
+#define UART_STATUS  (*(volatile uint32_t*)(CUSTOM_UART_BASE + 0x00))
+#define UART_CONTROL (*(volatile uint32_t*)(CUSTOM_UART_BASE + 0x04))
+#define UART_DATA    (*(volatile uint32_t*)(CUSTOM_UART_BASE + 0x08))
+
+// Initialize UART
+UART_CONTROL = 0x3; // Enable TX and RX
+
+// Send character
+if (UART_STATUS & 0x1) { // Check TX_READY
+    UART_DATA = 'A';
+}
+```
 
 ## Quick Setup (Recommended)
 
@@ -51,25 +101,25 @@ sudo apt-get install -y git ninja-build pkg-config python3 meson build-essential
 git submodule update --init
 ```
 
-### Configure and Build QEMU
+### Configure and Build QEMU with Custom Peripherals
 
 ```bash
 # Navigate to QEMU directory
 cd qemu
 
-# Create build directory and configure for ARM support
+# Create build directory and configure for ARM support with debug enabled
 mkdir -p build
 cd build
-../configure --target-list=arm-softmmu
+../configure --target-list=arm-softmmu --enable-debug
 
 # Build QEMU (this takes 15-30 minutes)
 make -j$(nproc)
 
 # Verify the build
-./qemu-system-arm --version
+./arm-softmmu/qemu-system-arm --version
 ```
 
-The built QEMU binary will be located at `qemu/build/qemu-system-arm`.
+The built QEMU binary will be located at `qemu/build/arm-softmmu/qemu-system-arm`.
 
 ## Building ARM Examples
 
@@ -98,35 +148,46 @@ arm-none-eabi-size build/m0.elf
 
 ## Running Examples
 
-### Using System QEMU
+### Using System QEMU (Basic Examples)
 
 ```bash
 cd examples/m0
 make QEMU_PATH=qemu-system-arm run
 ```
 
-### Using Built QEMU
+### Using Custom QEMU with Enhanced Features
 
 ```bash
 cd examples/m0
+
+# Run basic example
 make run
+
+# Test custom UART peripheral
+make test-custom-uart
+
+# Run with UART output to file
+make test-custom-uart-file
 ```
 
-Expected output:
-```
-Hello from M0
-```
+Expected outputs:
+- **Basic example**: `Hello from M0`
+- **Custom UART**: `Hello from Custom UART!` and `UART is working properly!`
 
-### Manual Execution
-
-You can also run manually:
+### Manual Execution with Custom Machine Type
 
 ```bash
-# Using system QEMU
-qemu-system-arm -M microbit -nographic -semihosting -kernel examples/m0/build/m0.elf
+# Using built QEMU with custom machine type
+qemu/build/arm-softmmu/qemu-system-arm \
+    -M microbit-custom \
+    -nographic \
+    -semihosting \
+    -serial null \
+    -serial file:uart_output.txt \
+    -kernel examples/m0/build/test_custom_uart.elf
 
-# Using built QEMU  
-qemu/build/qemu-system-arm -M microbit -nographic -semihosting -kernel examples/m0/build/m0.elf
+# View UART output
+cat uart_output.txt
 ```
 
 ## Debugging with GDB
@@ -163,28 +224,56 @@ In GDB:
 ```
 .
 ├── README.md                        # This file
-├── examples/m0/                     # Cortex-M0 bare metal example
-│   ├── Makefile                     # Build system
+├── examples/m0/                     # Cortex-M0 bare metal examples
+│   ├── Makefile                     # Build system with custom UART support
 │   ├── README.md                    # Example-specific documentation
 │   ├── src/main.c                   # Main program
 │   ├── src/semihosting.c/.h         # Console I/O support
+│   ├── src/test_custom_uart.c       # Custom UART test program
 │   ├── startup/startup_m0.S         # ARM startup code
 │   └── linker/m0.ld                 # Memory layout
-├── qemu/                            # QEMU source (submodule)
+├── qemu/                            # QEMU source (submodule) with custom peripherals
+│   ├── hw/char/custom-uart.c        # Custom UART peripheral implementation
+│   ├── hw/char/custom-uart.h        # Custom UART header
+│   ├── hw/arm/microbit-custom.c     # Custom machine type definition
+│   └── ...                          # Standard QEMU source
 └── .github/workflows/setup_env.yml  # CI/CD pipeline
 ```
+
+## Hardware Development
+
+### Custom Peripheral Architecture
+
+The custom UART demonstrates professional hardware peripheral development:
+
+1. **Memory-Mapped Registers**: Standard register interface at `0x60000000`
+2. **Status and Control Logic**: Proper flag management and enable controls
+3. **Character Backend Integration**: Connects to QEMU's character device system
+4. **Debug Interface**: Comprehensive logging for hardware debugging
+5. **Machine Integration**: Properly integrated into custom machine type
+
+### Key Implementation Files
+
+- **`qemu/hw/char/custom-uart.c`**: Complete UART peripheral implementation
+- **`qemu/hw/arm/microbit-custom.c`**: Machine type with UART integration
+- **`examples/m0/src/test_custom_uart.c`**: Hardware validation test
 
 ## Available Make Targets
 
 In the `examples/m0/` directory:
 
 ```bash
-make          # Build all (ELF, BIN, HEX)
-make clean    # Remove build artifacts  
-make size     # Show memory usage
-make run      # Execute on QEMU
-make debug    # Start QEMU with GDB server
-make help     # Show all targets
+make                      # Build all (ELF, BIN, HEX)
+make clean               # Remove build artifacts  
+make size                # Show memory usage
+make run                 # Execute basic example on QEMU
+make debug               # Start QEMU with GDB server
+make help                # Show all targets
+
+# Custom UART targets
+make test-custom-uart    # Build and run UART test
+make test-custom-uart-file  # Run UART test with file output
+make build-custom-uart   # Build UART test program only
 ```
 
 ## Troubleshooting
@@ -208,15 +297,44 @@ The Cortex-M0 example uses this memory layout:
   - BSS section (uninitialized variables)  
   - Stack (1KB)
   - Heap (remaining RAM)
+- **Custom UART**: 0x60000000 - 0x60000FFF (4K)
+  - STATUS register (0x60000000)
+  - CONTROL register (0x60000004)  
+  - DATA register (0x60000008)
 
 ## Contributing
 
 This project follows standard ARM bare metal development practices. When contributing:
 
-1. Ensure code builds without warnings
-2. Test on both system and built QEMU versions
-3. Update documentation for any new features
-4. Follow the existing code style
+1. **Code Quality**: Ensure code builds without warnings
+2. **Testing**: Test on both system and built QEMU versions  
+3. **Documentation**: Update documentation for any new features
+4. **Style**: Follow the existing code style
+5. **Hardware Development**: For custom peripherals:
+   - Follow QEMU device model conventions
+   - Add comprehensive register documentation
+   - Include validation test programs
+   - Ensure proper memory mapping
+
+## Development Guidelines
+
+### Adding New Peripherals
+
+1. Create peripheral implementation in `qemu/hw/[category]/`
+2. Add to appropriate `Makefile.objs`
+3. Integrate into machine definition
+4. Create test program in `examples/`
+5. Update documentation
+
+### Testing Custom Hardware
+
+```bash
+# Full validation sequence
+make clean
+cd qemu/build && make -j$(nproc)
+cd ../../examples/m0
+make test-custom-uart
+```
 
 ## License
 

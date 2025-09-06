@@ -1,0 +1,54 @@
+# QEMU ARM Development Environment - Git Ignore
+
+# Build directories
+qemu/build/
+examples/*/build/
+
+# Object files
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Test output files
+*.txt
+uart_output.*
+custom_uart_output.*
+
+# Editor files
+*~
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Backup files
+*.bak
+*.backup
+
+# Core dumps
+core
+core.*

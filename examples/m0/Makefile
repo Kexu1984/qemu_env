@@ -112,6 +112,7 @@ clean:
 
 # QEMU targets
 QEMU_PATH ?= ../../qemu/build/qemu-system-arm
+CUSTOM_QEMU_PATH ?= /home/xuke/qemu_env/qemu/build/arm-softmmu/qemu-system-arm
 
 run: $(BUILDDIR)/$(PROJECT).elf
 	@echo "Running $(PROJECT).elf in QEMU..."
@@ -123,20 +124,36 @@ debug: $(BUILDDIR)/$(PROJECT).elf
 	@echo "Connect with: $(GDB) $<"
 	@echo "Then use: target remote :1234"
 
+# Custom UART test
+test-custom-uart: $(BUILDDIR)/test_custom_uart.elf
+	@echo "Running custom UART test..."
+	@$(CUSTOM_QEMU_PATH) -M microbit-custom -nographic -semihosting -kernel $<
+
+$(BUILDDIR)/test_custom_uart.elf: $(BUILDDIR)/test_custom_uart.o $(BUILDDIR)/semihosting.o $(BUILDDIR)/startup_m0.o
+	@echo "LD $@"
+	@$(LD) $(LDFLAGS) $^ -o $@
+	@echo "Size information:"
+	@$(SIZE) $@
+
+$(BUILDDIR)/test_custom_uart.o: $(SRCDIR)/test_custom_uart.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
 # Help target
 help:
 	@echo "Available targets:"
-	@echo "  all     - Build ELF, BIN, and HEX files (default)"
-	@echo "  clean   - Remove build artifacts"
-	@echo "  size    - Show size information"
-	@echo "  run     - Run in QEMU"
-	@echo "  debug   - Start QEMU with GDB server"
-	@echo "  help    - Show this help message"
+	@echo "  all               - Build ELF, BIN, and HEX files (default)"
+	@echo "  clean             - Remove build artifacts"
+	@echo "  size              - Show size information"
+	@echo "  run               - Run in QEMU"
+	@echo "  debug             - Start QEMU with GDB server"
+	@echo "  test-custom-uart  - Test custom UART peripheral"
+	@echo "  help              - Show this help message"
 	@echo ""
 	@echo "Build artifacts are placed in $(BUILDDIR)/"
 
 # Phony targets
-.PHONY: all clean size run debug help
+.PHONY: all clean size run debug help test-custom-uart
 
 # Dependencies
 -include $(OBJECTS:.o=.d)

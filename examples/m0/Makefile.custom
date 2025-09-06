@@ -1,0 +1,92 @@
+# Makefile for custom UART test
+
+# Cross-compiler prefix
+PREFIX = arm-none-eabi-
+
+# Compiler and tools
+CC = $(PREFIX)gcc
+LD = $(PREFIX)ld
+OBJCOPY = $(PREFIX)objcopy
+OBJDUMP = $(PREFIX)objdump
+SIZE = $(PREFIX)size
+
+# Target CPU
+CPU = -mcpu=cortex-m0 -mthumb
+
+# Compiler flags
+CFLAGS = $(CPU) -Wall -Wextra -g -Os
+CFLAGS += -ffunction-sections -fdata-sections
+CFLAGS += -std=c99
+
+# Linker flags
+LDFLAGS = $(CPU) -T linker/m0.ld -Wl,--gc-sections -nostdlib -nostartfiles
+
+# Directories
+BUILD_DIR = build
+SRC_DIR = src
+STARTUP_DIR = startup
+
+# Source files
+STARTUP_SRC = $(STARTUP_DIR)/startup_m0.S
+C_SOURCES = $(SRC_DIR)/custom_uart_test.c $(SRC_DIR)/semihosting.c
+
+# Object files
+STARTUP_OBJ = $(BUILD_DIR)/startup_m0.o
+C_OBJECTS = $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(C_SOURCES))
+
+# Target
+TARGET = custom_uart_test
+ELF_FILE = $(BUILD_DIR)/$(TARGET).elf
+BIN_FILE = $(BUILD_DIR)/$(TARGET).bin
+HEX_FILE = $(BUILD_DIR)/$(TARGET).hex
+
+.PHONY: all clean size
+
+all: $(BUILD_DIR) $(BIN_FILE) $(HEX_FILE) size
+
+$(BUILD_DIR):
+	@mkdir -p $(BUILD_DIR)
+
+# Compile C files
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+	@echo "CC $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+# Assemble startup file
+$(STARTUP_OBJ): $(STARTUP_SRC)
+	@echo "AS $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+# Link
+$(ELF_FILE): $(C_OBJECTS) $(STARTUP_OBJ)
+	@echo "LD $@"
+	@$(CC) $(LDFLAGS) $^ -o $@
+	@$(OBJDUMP) -h -S $@ > $(BUILD_DIR)/$(TARGET).list
+	@$(OBJDUMP) -t $@ > $(BUILD_DIR)/$(TARGET).map
+
+# Create binary
+$(BIN_FILE): $(ELF_FILE)
+	@echo "OBJCOPY $@"
+	@$(OBJCOPY) -O binary $< $@
+
+# Create hex
+$(HEX_FILE): $(ELF_FILE)
+	@echo "OBJCOPY $@"
+	@$(OBJCOPY) -O ihex $< $@
+
+# Show size
+size: $(ELF_FILE)
+	@echo "Size information:"
+	@$(SIZE) $<
+
+clean:
+	@echo "Cleaning build artifacts..."
+	@rm -rf $(BUILD_DIR)
+
+# Test with custom microbit machine
+test: $(BIN_FILE)
+	@echo "Testing with custom UART QEMU..."
+	@/home/xuke/qemu_env/qemu/build/arm-softmmu/qemu-system-arm \
+		-M microbit-custom -nographic -semihosting \
+		-serial stdio -serial stdio \
+		-kernel $(ELF_FILE)
